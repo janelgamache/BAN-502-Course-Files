@@ -1,0 +1,32 @@
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(GGally)
+library(lmtest)
+```
+
+```{r}
+air = airquality
+
+nrow(air)
+ncol(air)
+str(air)
+summary(air)
+```
+
+```{r}
+air2 = air %>% drop_na()
+
+nrow(air2)
+ncol(air2)
+```
+
+```{r}
+ggpairs(air2)
+```
+
+```{r}
+lm_fit = lm(Ozone ~ Temp, air2)
+summary(lm_fit)
+```
+

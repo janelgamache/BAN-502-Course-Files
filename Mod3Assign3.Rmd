@@ -1,0 +1,90 @@
+Load libraries and data
+```{r}
+library(tidyverse)
+library(lubridate)
+library(tidymodels)
+library(e1071)
+library(ROCR)
+library(glmnet)
+library(readr)
+parole <- read_csv("MSBA/BAN 502/Module 3/parole.csv")
+```
+
+Rename columns as factors
+```{r}
+parole = parole %>% mutate(male = as_factor(male)) %>%
+  mutate(male = fct_recode(male, "No" = "0", "Yes" = "1")) %>%
+  mutate(race = as_factor(race)) %>%
+  mutate(race = fct_recode(race, "Other" = "2", "White" = "1")) %>%
+  mutate(state = as_factor(state)) %>%
+  mutate(state = fct_recode(state, "Other" = "1", "Kentucky" = "2", "Louisiana" = "3", "Virginia" = "4")) %>%
+  mutate(crime = as_factor(crime)) %>%
+  mutate(crime = fct_recode(crime, "Other" = "1", "larceny" = "2", "drug-related" = "3", "driving-related" = "4")) %>%
+  mutate(multiple.offenses = as_factor(multiple.offenses)) %>%
+  mutate(multiple.offenses = fct_recode(multiple.offenses, "Yes" = "1", "No" = "0")) %>%
+  mutate(violator = as_factor(violator)) %>%
+  mutate(violator = fct_recode(violator, "Yes" = "1", "No" = "0"))
+```
+
+Question 1
+```{r}
+summary(parole$violator)
+```
+Split data
+```{r}
+set.seed(12345)
+parole_split = initial_split(parole, prop = 0.7, strata = violator)
+train = training(parole_split)
+test = testing(parole_split)
+
+train = train %>% mutate(violator = fct_relevel(violator, c("No", "Yes")))
+levels(train$violator)
+```
+Logistic Model: State predict violator
+```{r}
+parole_model = logistic_reg() %>%
+  set_engine("glm")
+
+parole_recipe = recipe(violator ~ state, parole) %>%
+  step_dummy(all_nominal(), -all_outcomes())
+
+logreg_wf = workflow() %>%
+  add_recipe(parole_recipe) %>%
+  add_model(parole_model)
+
+parole_fit = fit(logreg_wf, parole)
+
+summary(parole_fit$fit$fit$fit)
+```
+
+LogReg: state, multiple offenses, race to predict violator
+```{r}
+parole_model2 = logistic_reg() %>%
+  set_engine("glm")
+
+parole_recipe2 = recipe(violator ~ state + multiple.offenses + race, parole) %>%
+  step_dummy(all_nominal(), -all_outcomes())
+
+logreg_wf2 = workflow() %>%
+  add_recipe(parole_recipe2) %>%
+  add_model(parole_model2)
+
+parole_fit2 = fit(logreg_wf2, parole)
+
+summary(parole_fit2$fit$fit$fit)
+```
+Probability
+```{r}
+newdata = data.frame(state = "Louisiana", multiple.offenses = "Yes", race = "White")
+predict(parole_fit2, newdata, type = "prob")
+```
+ROC Curve
+```{r}
+predictions = predict(parole_fit2, train, type = "prob")
+
+ROCpred = prediction(predictions, parole$violator)
+
+ROCperf = performance(ROCpred, "tpr", "fpr")
+plot(ROCperf, colorize = TRUE, print.cutoffs.at = seq(0,1,by 0.1), text.adj = c(-0.2, 1.7))
+```
+

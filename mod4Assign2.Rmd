@@ -1,0 +1,49 @@
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(mice) #package for imputation
+library(VIM) #visualizing missingness
+library(rpart) #for classification trees
+library(rpart.plot) #for plotting trees
+library(RColorBrewer) #better visualization of classification trees
+library(rattle) #better visualization of classification trees
+library(readr)
+heart <- read_csv("MSBA/BAN 502/Module 4/heart_disease-1.csv")
+
+```
+
+```{r}
+heart = heart %>% mutate(HeartDisease = as_factor(HeartDisease)) %>% 
+  mutate(HeartDisease = fct_recode(HeartDisease, "No" = "0", "Yes" = "1" )) %>%
+  mutate(Sex = as_factor(Sex)) %>% mutate(ChestPainType = as_factor(ChestPainType)) %>%
+  mutate(RestingECG = as_factor(RestingECG)) %>% 
+  mutate(ExerciseAngina = as_factor(ExerciseAngina)) %>% 
+  mutate(ST_Slope = as_factor(ST_Slope))
+
+str(heart)
+```
+
+```{r}
+set.seed(12345) 
+heart_split = initial_split(heart, prop = 0.7, strata = HeartDisease) #70% in training
+train = training(heart_split) 
+test = testing(heart_split)
+
+
+```
+
+```{r}
+heart_recipe = recipe(heart$HeartDisease ~ Age, Sex)
+
+tree_model = decision_tree() %>% 
+  set_engine("rpart", model = TRUE) %>% #don't forget the model = TRUE flag
+  set_mode("classification")
+
+heart_wflow = 
+  workflow() %>% 
+  add_model(tree_model) %>% 
+  add_recipe(heart_recipe)
+
+heart_fit = fit(heart_wflow, train)
+```
+
